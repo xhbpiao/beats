@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"hash/fnv"
 	"math/rand"
 	"strconv"
 
@@ -196,7 +195,7 @@ func cfgHashPartitioner(config *common.Config) (func() partitioner, error) {
 
 func makeHashPartitioner() partitioner {
 	generator := rand.New(rand.NewSource(rand.Int63()))
-	hasher := fnv.New32a()
+	hasher := NewAsc()
 
 	return func(msg *message, numPartitions int32) (int32, error) {
 		if msg.key == nil {
@@ -220,7 +219,7 @@ func makeHashPartitioner() partitioner {
 
 func makeFieldsHashPartitioner(fields []string, dropFail bool) partitioner {
 	generator := rand.New(rand.NewSource(rand.Int63()))
-	hasher := fnv.New32a()
+	hasher := New32a()
 
 	return func(msg *message, numPartitions int32) (int32, error) {
 		hash := msg.hash
