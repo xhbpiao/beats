@@ -1,3 +1,20 @@
+// Licensed to Elasticsearch B.V. under one or more contributor
+// license agreements. See the NOTICE file distributed with
+// this work for additional information regarding copyright
+// ownership. Elasticsearch B.V. licenses this file to you under
+// the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 package publish
 
 import (
@@ -170,22 +187,30 @@ func (p *transProcessor) normalizeTransAddr(event common.MapStr) bool {
 			event["direction"] = "out"
 		}
 
-		srcServer = p.GetServerName(src.IP)
 		event["client_ip"] = src.IP
 		event["client_port"] = src.Port
 		event["client_proc"] = src.Proc
-		event["client_server"] = srcServer
+		if len(src.Cmdline) > 0 {
+			event["client_cmdline"] = src.Cmdline
+		}
+		if _, exists := event["client_server"]; !exists {
+			event["client_server"] = p.GetServerName(src.IP)
+		}
 		delete(event, "src")
 	}
 
 	dst, ok := event["dst"].(*common.Endpoint)
 	debugf("has dst: %v", ok)
 	if ok {
-		dstServer = p.GetServerName(dst.IP)
 		event["ip"] = dst.IP
 		event["port"] = dst.Port
 		event["proc"] = dst.Proc
-		event["server"] = dstServer
+		if len(dst.Cmdline) > 0 {
+			event["cmdline"] = dst.Cmdline
+		}
+		if _, exists := event["server"]; !exists {
+			event["server"] = p.GetServerName(dst.IP)
+		}
 		delete(event, "dst")
 
 		//check if it's incoming transaction (as server)

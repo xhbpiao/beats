@@ -1,3 +1,20 @@
+// Licensed to Elasticsearch B.V. under one or more contributor
+// license agreements. See the NOTICE file distributed with
+// this work for additional information regarding copyright
+// ownership. Elasticsearch B.V. licenses this file to you under
+// the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 package pipeline
 
 import (
@@ -29,6 +46,7 @@ func init() {
 // configured queue and outputs.
 func Load(
 	beatInfo beat.Info,
+	reg *monitoring.Registry,
 	config Config,
 	outcfg common.ConfigNamespace,
 ) (*Pipeline, error) {
@@ -41,11 +59,6 @@ func Load(
 		return nil, fmt.Errorf("error initializing processors: %v", err)
 	}
 
-	reg := monitoring.Default.GetRegistry("libbeat")
-	if reg == nil {
-		reg = monitoring.Default.NewRegistry("libbeat")
-	}
-
 	name := beatInfo.Name
 	settings := Settings{
 		WaitClose:     0,
@@ -54,10 +67,15 @@ func Load(
 		Processors:    processors,
 		Annotations: Annotations{
 			Event: config.EventMetadata,
-			Beat: common.MapStr{
-				"name":     name,
-				"hostname": beatInfo.Hostname,
-				"version":  beatInfo.Version,
+			Builtin: common.MapStr{
+				"beat": common.MapStr{
+					"name":     name,
+					"hostname": beatInfo.Hostname,
+					"version":  beatInfo.Version,
+				},
+				"host": common.MapStr{
+					"name": name,
+				},
 			},
 		},
 	}
@@ -97,15 +115,28 @@ func loadOutput(
 	}
 
 	// TODO: add support to unload/reassign outStats on output reloading
-	outReg := reg.NewRegistry("output")
-	outStats := outputs.MakeStats(outReg)
 
-	out, err := outputs.Load(beatInfo, &outStats, outcfg.Name(), outcfg.Config())
+	var (
+		outReg   *monitoring.Registry
+		outStats outputs.Observer
+	)
+	if reg != nil {
+		outReg = reg.NewRegistry("output")
+		outStats = outputs.NewStats(outReg)
+	}
+
+	out, err := outputs.Load(beatInfo, outStats, outcfg.Name(), outcfg.Config())
 	if err != nil {
 		return outputs.Fail(err)
 	}
 
-	monitoring.NewString(outReg, "type").Set(outcfg.Name())
+	if outReg != nil {
+		monitoring.NewString(outReg, "type").Set(outcfg.Name())
+	}
+
+	stateRegistry := monitoring.GetNamespace("state").GetRegistry()
+	outputRegistry := stateRegistry.NewRegistry("output")
+	monitoring.NewString(outputRegistry, "name").Set(outcfg.Name())
 
 	return out, nil
 }

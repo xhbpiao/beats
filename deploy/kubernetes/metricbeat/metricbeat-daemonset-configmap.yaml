@@ -6,7 +6,6 @@ metadata:
   namespace: kube-system
   labels:
     k8s-app: metricbeat
-    kubernetes.io/cluster-service: "true"
 data:
   metricbeat.yml: |-
     metricbeat.config.modules:
@@ -17,6 +16,9 @@ data:
 
     processors:
       - add_cloud_metadata:
+
+    cloud.id: ${ELASTIC_CLOUD_ID}
+    cloud.auth: ${ELASTIC_CLOUD_AUTH}
 
     output.elasticsearch:
       hosts: ['${ELASTICSEARCH_HOST:elasticsearch}:${ELASTICSEARCH_PORT:9200}']
@@ -30,7 +32,6 @@ metadata:
   namespace: kube-system
   labels:
     k8s-app: metricbeat
-    kubernetes.io/cluster-service: "true"
 data:
   system.yml: |-
     - module: system

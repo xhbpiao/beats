@@ -24,6 +24,10 @@ def document_fields(output, section, sections, path):
     output.write("\n")
     for field in section["fields"]:
 
+        # Skip entries which do not define a name
+        if "name" not in field:
+            continue
+
         if path == "":
             newpath = field["name"]
         else:
@@ -40,7 +44,7 @@ def document_field(output, field, path):
     if "path" not in field:
         field["path"] = path
 
-    output.write("[float]\n=== `{}`\n\n".format(field["path"]))
+    output.write("*`{}`*::\n+\n--\n".format(field["path"]))
 
     if "type" in field:
         output.write("type: {}\n\n".format(field["type"]))
@@ -61,6 +65,11 @@ def document_field(output, field, path):
     if "enable" in field:
         if not field["enable"]:
             output.write("{}\n\n".format("Object is not enabled."))
+
+    if "multi_fields" in field:
+        for subfield in field["multi_fields"]:
+            document_field(output, subfield, path + "." + subfield["name"])
+    output.write("--\n\n")
 
 
 def fields_to_asciidoc(input, output, beat):

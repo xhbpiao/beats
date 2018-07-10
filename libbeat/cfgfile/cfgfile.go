@@ -1,3 +1,20 @@
+// Licensed to Elasticsearch B.V. under one or more contributor
+// license agreements. See the NOTICE file distributed with
+// this work for additional information regarding copyright
+// ownership. Elasticsearch B.V. licenses this file to you under
+// the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 package cfgfile
 
 import (
@@ -15,8 +32,8 @@ var (
 	// The default config cannot include the beat name as it is not initialized
 	// when this variable is created. See ChangeDefaultCfgfileFlag which should
 	// be called prior to flags.Parse().
-	configfiles = flagArgList("c", "beat.yml", "Configuration file, relative to path.config")
-	overwrites  = common.NewFlagConfig(nil, nil, "E", "Configuration overwrite")
+	configfiles = common.StringArrFlag(nil, "c", "beat.yml", "Configuration file, relative to path.config")
+	overwrites  = common.SettingFlag(nil, "E", "Configuration overwrite")
 	testConfig  = flag.Bool("configtest", false, "Test configuration and exit.")
 
 	// Additional default settings, that must be available for variable expansion
@@ -37,7 +54,7 @@ var (
 func init() {
 	// add '-path.x' options overwriting paths in 'overwrites' config
 	makePathFlag := func(name, usage string) *string {
-		return common.NewFlagOverwrite(nil, overwrites, name, name, "", usage)
+		return common.ConfigOverwriteFlag(nil, overwrites, name, name, "", usage)
 	}
 
 	homePath = makePathFlag("path.home", "Home path")
@@ -107,7 +124,7 @@ func Load(path string) (*common.Config, error) {
 
 	if path == "" {
 		list := []string{}
-		for _, cfg := range configfiles.list {
+		for _, cfg := range configfiles.List() {
 			if !filepath.IsAbs(cfg) {
 				list = append(list, filepath.Join(cfgpath, cfg))
 			} else {

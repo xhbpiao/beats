@@ -1,3 +1,20 @@
+// Licensed to Elasticsearch B.V. under one or more contributor
+// license agreements. See the NOTICE file distributed with
+// this work for additional information regarding copyright
+// ownership. Elasticsearch B.V. licenses this file to you under
+// the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 // +build !integration
 
 package mb
@@ -65,19 +82,6 @@ func TestModuleConfig(t *testing.T) {
 		{
 			in:  map[string]interface{}{},
 			err: "missing required field accessing 'module'",
-		},
-		{
-			in: map[string]interface{}{
-				"module": "example",
-			},
-			err: "missing required field accessing 'metricsets'",
-		},
-		{
-			in: map[string]interface{}{
-				"module":     "example",
-				"metricsets": []string{},
-			},
-			err: "empty field accessing 'metricsets'",
 		},
 		{
 			in: map[string]interface{}{
@@ -172,6 +176,24 @@ func TestNewModulesDuplicateHosts(t *testing.T) {
 
 	_, _, err := NewModule(c, r)
 	assert.Error(t, err)
+}
+
+// TestNewModulesWithDefaultMetricSet verifies that the default MetricSet is
+// instantiated when no metricsets are specified in the config.
+func TestNewModulesWithDefaultMetricSet(t *testing.T) {
+	r := newTestRegistry(t, DefaultMetricSet())
+
+	c := newConfig(t, map[string]interface{}{
+		"module": moduleName,
+	})
+
+	_, metricSets, err := NewModule(c, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if assert.Len(t, metricSets, 1) {
+		assert.Equal(t, metricSetName, metricSets[0].Name())
+	}
 }
 
 func TestNewModulesHostParser(t *testing.T) {
@@ -316,7 +338,7 @@ func TestNewBaseModuleFromModuleConfigStruct(t *testing.T) {
 	assert.Empty(t, baseModule.Config().Hosts)
 }
 
-func newTestRegistry(t testing.TB) *Register {
+func newTestRegistry(t testing.TB, metricSetOptions ...MetricSetOption) *Register {
 	r := NewRegister()
 
 	if err := r.AddModule(moduleName, DefaultModuleFactory); err != nil {
@@ -327,7 +349,7 @@ func newTestRegistry(t testing.TB) *Register {
 		return &testMetricSet{base}, nil
 	}
 
-	if err := r.AddMetricSet(moduleName, metricSetName, factory); err != nil {
+	if err := r.addMetricSet(moduleName, metricSetName, factory, metricSetOptions...); err != nil {
 		t.Fatal(err)
 	}
 

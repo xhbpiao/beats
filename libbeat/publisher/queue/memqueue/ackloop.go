@@ -1,3 +1,20 @@
+// Licensed to Elasticsearch B.V. under one or more contributor
+// license agreements. See the NOTICE file distributed with
+// this work for additional information regarding copyright
+// ownership. Elasticsearch B.V. licenses this file to you under
+// the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 package memqueue
 
 // ackLoop implements the brokers asynchronous ACK worker.
@@ -53,13 +70,20 @@ func (l *ackLoop) run() {
 			count, events := lst.count()
 			l.lst.concat(&lst)
 
-			// log.Debugf("ackloop: scheduledACKs count=%v events=%v\n", count, events)
+			// log.Debug("ACK List:")
+			// for current := l.lst.head; current != nil; current = current.next {
+			// 	log.Debugf("  ack entry(seq=%v, start=%v, count=%v",
+			// 		current.seq, current.start, current.count)
+			// }
+
 			l.batchesSched += uint64(count)
 			l.totalSched += uint64(events)
 
 		case <-l.sig:
 			acked += l.handleBatchSig()
-			acks = l.broker.acks
+			if acked > 0 {
+				acks = l.broker.acks
+			}
 		}
 
 		// log.Debug("ackloop INFO")
@@ -87,12 +111,14 @@ func (l *ackLoop) handleBatchSig() int {
 		count += current.count
 	}
 
-	if e := l.broker.eventer; e != nil {
-		e.OnACK(count)
-	}
+	if count > 0 {
+		if e := l.broker.eventer; e != nil {
+			e.OnACK(count)
+		}
 
-	// report acks to waiting clients
-	l.processACK(lst, count)
+		// report acks to waiting clients
+		l.processACK(lst, count)
+	}
 
 	for !lst.empty() {
 		releaseACKChan(lst.pop())
@@ -110,6 +136,7 @@ func (l *ackLoop) collectAcked() chanList {
 	lst := chanList{}
 
 	acks := l.lst.pop()
+	l.onACK(acks)
 	lst.append(acks)
 
 	done := false
@@ -117,8 +144,7 @@ func (l *ackLoop) collectAcked() chanList {
 		acks := l.lst.front()
 		select {
 		case <-acks.ch:
-			l.broker.logger.Debugf("ackloop: receive ack [%v: %v, %v]", acks.seq, acks.start, acks.count)
-			l.batchesACKed++
+			l.onACK(acks)
 			lst.append(l.lst.pop())
 
 		default:
@@ -127,4 +153,9 @@ func (l *ackLoop) collectAcked() chanList {
 	}
 
 	return lst
+}
+
+func (l *ackLoop) onACK(acks *ackChan) {
+	l.batchesACKed++
+	l.broker.logger.Debugf("ackloop: receive ack [%v: %v, %v]", acks.seq, acks.start, acks.count)
 }

@@ -1,4 +1,3 @@
-== graphite Module
-
 This is the graphite Module.
 
+The default metricset is `server`.

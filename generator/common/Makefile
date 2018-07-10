@@ -6,6 +6,7 @@ BEAT_PATH=${BUILD_DIR}/src/beatpath/testbeat
 ES_BEATS=${GOPATH}/src/github.com/elastic/beats
 PREPARE_COMMAND?=
 
+
 # Runs test build for mock beat
 .PHONY: test
 test: prepare-test
@@ -13,14 +14,14 @@ test: prepare-test
 	export GOPATH=${PWD}/build ; \
 	export PATH=${PATH}:${PWD}/build/bin; \
 	cd ${BEAT_PATH} ; \
-	make copy-vendor ; \
-	${PREPARE_COMMAND}  \
-	make check ; \
-	make update ; \
-	make ; \
-	make unit
+	$(MAKE) copy-vendor || exit 1  ; \
+	${PREPARE_COMMAND} \
+	$(MAKE) update || exit 1 ; \
+	$(MAKE) check || exit 1 ; \
+	$(MAKE) || exit 1 ; \
+	$(MAKE) unit
 
-prepare-test: python-env
+prepare-test:: python-env
 	# Makes sure to use current version of beats for testing
 	mkdir -p ${BUILD_DIR}/src/github.com/elastic/beats/
 	rsync -a --exclude=build ${PWD}/../../* ${BUILD_DIR}/src/github.com/elastic/beats/
@@ -36,14 +37,16 @@ test-build: test
 	cp -r ${PWD}/../../../dev-tools ${BEAT_PATH}/vendor/github.com/elastic/beats/
 
 	cd ${BEAT_PATH}/dev-tools/packer ; \
-	make deps ; \
-	make images
+	$(MAKE) deps ; \
+	$(MAKE) images
 
 # Sets up the virtual python environment
 .PHONY: python-env
 python-env:
 	@test -d ${PYTHON_ENV} || virtualenv ${PYTHON_ENV}
 	@${PYTHON_ENV}/bin/pip install --upgrade pip PyYAML
+	@# Work around pip bug. See: https://github.com/pypa/pip/issues/4464
+	@find $(PYTHON_ENV) -type d -name dist-packages -exec sh -c "echo dist-packages > {}.pth" ';'
 
 # Cleans up environment
 .PHONY: clean

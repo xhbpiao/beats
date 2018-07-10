@@ -1,6 +1,3 @@
-== Kafka module
-
-beta[]
-
 This is the Kafka module.
 
+The default metricsets are `consumergroup` and `partition`.
