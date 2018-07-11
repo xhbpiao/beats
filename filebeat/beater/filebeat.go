@@ -44,6 +44,7 @@ import (
 
 	// Add filebeat level processors
 	_ "github.com/elastic/beats/filebeat/processor/add_kubernetes_metadata"
+	_ "github.com/elastic/beats/libbeat/processors/add_path_metadata"
 )
 
 const pipelinesWarning = "Filebeat is unable to load the Ingest Node pipelines for the configured" +
